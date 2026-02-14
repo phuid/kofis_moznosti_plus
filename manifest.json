@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "KOFI IS MOZNOSTI+",
+  "version": "0.1",
+  "description": "Allows you to define kofi possibilities in a normal way. Then it allows you to convert and copy it across the kofi IS.",
+  "icons": {
+    "48": "icons/-48.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://is.kofikofi.cz/index.php?what=moznosti_napsat",
+        "*://is.kofikofi.cz/index.php?what=moznosti_napsat&obdobi=aktualni"
+      ],
+      "js": [
+        "moznostiplus.js"
+      ]
+    }
+  ]
+}
