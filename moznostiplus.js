@@ -878,28 +878,42 @@ window.moznostiPlusInterface = {
   getActivePresetId: () => presetsData.activePresetId
 };
 
-let applybuttons = [];
+function loadLabels() {
+  const labels = Array.from(document.getElementsByTagName("label"));
+
+  labels.filter((l) => {
+    return typeof l.getAttribute("for") == "string" && l.getAttribute("for").substring(0, 9) == "labelauty";
+  });
+
+  return labels;
+}
+
+let newWeeks = [];
+
+const POSITIONED_AFTER = 2;
+const POSITIONED_BEFORE = 4 ;
+
+function handleApplyClick(nw) {
+  const labels = loadLabels();
+
+  let i = 0;
+  while(nw.compare)
+}
 
 function addApplyButtons() {
-  const newWeeks = Array.from(document.getElementsByTagName("th")).filter((e) => {
+  newWeeks = Array.from(document.getElementsByTagName("th")).filter((e) => {
     return e.innerHTML == "Den";
   });
-  applybuttons = [];
   for (const nw of newWeeks) {
     const button = document.createElement('button')
     button.innerText = 'Preset';
-    button.addEventListener('click', () => {
-      // get next button
-      console.log(this);
-    })
+    button.onclick = () => { handleApplyClick(nw) };
     button.style.backgroundColor = "#4CAF50";
     button.style.border = "0px solid";
     button.type = "button";
-    
-    applybuttons.push(button);
-    
+
     nw.innerHTML = "";
-    nw.appendChild(button);                          
+    nw.appendChild(button);
   }
 }
 
@@ -910,28 +924,14 @@ function init() {
 
 // Initialize on DOM ready
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init());
+  document.addEventListener("DOMContentLoaded", init);
 } else {
   init();
 }
 
-function loadLabels() {
-  const labels = Array.from(document.getElementsByTagName("label"));
 
-  labels.filter((l) => {
-    console.log(l.getAttribute("for"))
-    return typeof l.getAttribute("for") == "string" && l.getAttribute("for").substring(0, 9) == "labelauty";
-  });
-
-  for (const l of labels) {
-    l.style.backgroundColor = "red";
-  }
-}
-
-
-
-setInterval(() => {
-  console.log(window.moznostiPlusInterface.getAvailability());
-  console.log(window.moznostiPlusInterface.getTimeSlots());
-}, 5000);
+// setInterval(() => {
+//   console.log(window.moznostiPlusInterface.getAvailability());
+//   console.log(window.moznostiPlusInterface.getTimeSlots());
+// }, 5000);
 
