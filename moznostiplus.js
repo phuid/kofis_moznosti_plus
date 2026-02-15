@@ -163,7 +163,7 @@ function createInterfaceDiv() {
   interfaceDiv.innerHTML = `
     <div id="moznostiPlus-content">
       <div id="moznostiPlus-header">
-        <h3>moznostiPlus</h3>
+        <h3>moznosti+</h3>
         <div id="moznostiPlus-header-buttons">
           <button id="moznostiPlus-size-btn">−</button>
           <button id="moznostiPlus-toggle-btn">+</button>
@@ -198,6 +198,8 @@ function createInterfaceDiv() {
 function applyInterfaceStyles() {
   const style = document.createElement("style");
   style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Lacquer&display=swap');
+
     #moznostiPlus-interface {
       position: fixed;
       top: 10px;
@@ -223,6 +225,11 @@ function applyInterfaceStyles() {
       margin-top: 12px;
       border-top: 1px solid #ccc;
       padding-top: 8px;
+      gap: 8px;
+
+      font-family: "Lacquer", system-ui;
+      font-weight: 400;
+      font-style: normal;
     }
     
     #moznostiPlus-header h3 {
@@ -890,14 +897,48 @@ function loadLabels() {
 
 let newWeeks = [];
 
-const POSITIONED_AFTER = 2;
-const POSITIONED_BEFORE = 4 ;
+const POSITIONED_AFTER = 4;
+const POSITIONED_BEFORE = 2;
+
+function isOccupied(label, availability, timeslots) {
+  const checkbox = document.getElementById(label.htmlFor);
+
+  const valueSplit = checkbox.value.split("|");
+  if (valueSplit.length < 4) { throw ("checkbox valuesplit error"); }
+
+  const dayOfWeek = DAYS_OF_WEEK_IDS.indexOf(valueSplit[1]);
+  const timeSlot = valueSplit[2];
+
+  let occupied = true;
+  for (const av of availability[dayOfWeek]) {
+    
+  }
+
+  return occupied;
+}
 
 function handleApplyClick(nw) {
   const labels = loadLabels();
 
+  // // find the checkboxes in the week this button corresponds to
+  // find the
+  const nextNw = (newWeeks.findIndex(e =>
+    e == nw
+  ) + 1) % newWeeks.length;
+
   let i = 0;
-  while(nw.compare)
+  while (nw.compareDocumentPosition(labels[i]) == POSITIONED_BEFORE) {
+    //skip all checkboxes that occur before the clicked button
+    if (i >= labels.length) break;
+    i++;
+  }
+  while (nextNw == 0 || newWeeks[nextNw].compareDocumentPosition(labels[i]) == POSITIONED_BEFORE) {
+    if (i >= labels.length) break;
+
+    labels[i].ariaChecked = isOccupied(labels[i], window.moznostiPlusInterface.getAvailability(), window.moznostiPlusInterface.getTimeSlots());
+
+    i++;
+  }
 }
 
 function addApplyButtons() {
@@ -928,10 +969,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
-// setInterval(() => {
-//   console.log(window.moznostiPlusInterface.getAvailability());
-//   console.log(window.moznostiPlusInterface.getTimeSlots());
-// }, 5000);
-
