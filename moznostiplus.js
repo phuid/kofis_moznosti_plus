@@ -20,35 +20,113 @@ function generateTimeSlots() {
   return slots;
 }
 
-// Data structure for storing work availability
-// weeklyAvailability[dayOfWeek] = [{from: slotIndex, to: slotIndex}, ...]
-let weeklyAvailability = Array(7).fill(null).map(() => []);
+// Data structure for storing presets with active selection
+// { presets: [{id, name, weeklyAvailability}, ...], activePresetId: id }
+let presetsData = {
+  presets: [],
+  activePresetId: null
+};
+
+// Interface size state: 'minimized', 'expanded', 'full'
+let interfaceSize = 'expanded';
+
+// Helper to get active preset
+function getActivePreset() {
+  if (!presetsData.activePresetId) return null;
+  return presetsData.presets.find(p => p.id === presetsData.activePresetId);
+}
+
+// Helper to get active preset data
+function getActivePresetData() {
+  const preset = getActivePreset();
+  return preset ? preset.weeklyAvailability : Array(7).fill(null).map(() => []);
+}
 
 // Load data from localStorage if exists
 function loadWorkAvailability() {
-  const saved = localStorage.getItem("moznostiPlus_work_availability");
+  const saved = localStorage.getItem("moznostiPlus_presets");
   if (saved) {
-    weeklyAvailability = JSON.parse(saved);
+    presetsData = JSON.parse(saved);
   } else {
-    // Initialize with empty arrays
-    weeklyAvailability = Array(7).fill(null).map(() => []);
+    // Initialize with one default preset
+    presetsData = {
+      presets: [{
+        id: 1,
+        name: "Výchozí",
+        weeklyAvailability: Array(7).fill(null).map(() => [])
+      }],
+      activePresetId: 1
+    };
+    saveWorkAvailability();
   }
 }
 
 // Save data to localStorage
 function saveWorkAvailability() {
-  localStorage.setItem("moznostiPlus_work_availability", JSON.stringify(weeklyAvailability));
+  localStorage.setItem("moznostiPlus_presets", JSON.stringify(presetsData));
+}
+
+// Create new preset
+function createPreset(name) {
+  const newId = Math.max(0, ...presetsData.presets.map(p => p.id)) + 1;
+  const newPreset = {
+    id: newId,
+    name: name || `Preset ${newId}`,
+    weeklyAvailability: Array(7).fill(null).map(() => [])
+  };
+  presetsData.presets.push(newPreset);
+  presetsData.activePresetId = newId;
+  saveWorkAvailability();
+  renderTimelines();
+  updatePresetsUI();
+}
+
+// Delete preset
+function deletePreset(presetId) {
+  presetsData.presets = presetsData.presets.filter(p => p.id !== presetId);
+
+  // If deleted preset was active, switch to first available
+  if (presetsData.activePresetId === presetId) {
+    presetsData.activePresetId = presetsData.presets.length > 0 ? presetsData.presets[0].id : null;
+  }
+
+  saveWorkAvailability();
+  renderTimelines();
+  updatePresetsUI();
+}
+
+// Switch active preset
+function switchPreset(presetId) {
+  if (presetsData.presets.find(p => p.id === presetId)) {
+    presetsData.activePresetId = presetId;
+    saveWorkAvailability();
+    renderTimelines();
+    updatePresetsUI();
+  }
+}
+
+// Rename preset
+function renamePreset(presetId, newName) {
+  const preset = presetsData.presets.find(p => p.id === presetId);
+  if (preset && newName.trim().length > 0) {
+    preset.name = newName.trim();
+    saveWorkAvailability();
+    updatePresetsUI();
+  }
 }
 
 // Add new time range for a day
 function addTimeRange(dayOfWeek) {
-  if (!weeklyAvailability[dayOfWeek]) {
-    weeklyAvailability[dayOfWeek] = [];
+  const preset = getActivePreset();
+  if (!preset) return;
+
+  if (!preset.weeklyAvailability[dayOfWeek]) {
+    preset.weeklyAvailability[dayOfWeek] = [];
   }
-  // Default: first half of the day
-  weeklyAvailability[dayOfWeek].push({
+
+  preset.weeklyAvailability[dayOfWeek].push({
     from: 0,
-    to: 18
+    to: 17
   });
   saveWorkAvailability();
   renderTimelines();
@@ -56,17 +134,21 @@ function addTimeRange(dayOfWeek) {
 
 // Remove time range for a day
 function removeTimeRange(dayOfWeek, rangeIndex) {
-  if (weeklyAvailability[dayOfWeek]) {
-    weeklyAvailability[dayOfWeek].splice(rangeIndex, 1);
-    saveWorkAvailability();
-    renderTimelines();
-  }
+  const preset = getActivePreset();
+  if (!preset || !preset.weeklyAvailability[dayOfWeek]) return;
+
+  preset.weeklyAvailability[dayOfWeek].splice(rangeIndex, 1);
+  saveWorkAvailability();
+  renderTimelines();
 }
 
 // Update time range
 function updateTimeRange(dayOfWeek, rangeIndex, from, to) {
-  if (from < to && weeklyAvailability[dayOfWeek] && weeklyAvailability[dayOfWeek][rangeIndex]) {
-    weeklyAvailability[dayOfWeek][rangeIndex] = { from, to };
+  const preset = getActivePreset();
+  if (!preset || !preset.weeklyAvailability[dayOfWeek] || !preset.weeklyAvailability[dayOfWeek][rangeIndex]) return;
+
+  if (from < to) {
+    preset.weeklyAvailability[dayOfWeek][rangeIndex] = { from, to };
     saveWorkAvailability();
     renderTimelines();
   }
@@ -81,9 +163,21 @@ function createInterfaceDiv() {
     <div id="moznostiPlus-content">
       <div id="moznostiPlus-header">
         <h3>moznostiPlus</h3>
-        <button id="moznostiPlus-toggle-btn">−</button>
+        <div id="moznostiPlus-header-buttons">
+          <button id="moznostiPlus-size-btn">−</button>
+          <button id="moznostiPlus-toggle-btn">+</button>
+        </div>
       </div>
-      Nastavit týdenní preset
+      
+      <div id="moznostiPlus-presets-section">
+        <div id="moznostiPlus-presets-label">Presety:</div>
+        <div id="moznostiPlus-presets-list"></div>
+        <div id="moznostiPlus-presets-controls">
+          <input type="text" id="moznostiPlus-preset-name" placeholder="Nový preset...">
+          <button id="moznostiPlus-create-preset-btn">+ Přidat</button>
+        </div>
+      </div>
+      
       <div id="moznostiPlus-timelines-section">
         <div id="moznostiPlus-timelines"></div>
       </div>
@@ -94,7 +188,9 @@ function createInterfaceDiv() {
   applyInterfaceStyles();
   loadWorkAvailability();
   renderTimelines();
+  updatePresetsUI();
   attachEventListeners();
+  updateInterfaceSize();
 }
 
 // Apply CSS styles
@@ -123,9 +219,9 @@ function applyInterfaceStyles() {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 8px;
+      margin-top: 12px;
+      border-top: 1px solid #ccc;
+      padding-top: 8px;
     }
     
     #moznostiPlus-header h3 {
@@ -134,6 +230,12 @@ function applyInterfaceStyles() {
       color: #333;
     }
     
+    #moznostiPlus-header-buttons {
+      display: flex;
+      gap: 4px;
+    }
+    
+    #moznostiPlus-size-btn,
     #moznostiPlus-toggle-btn {
       background: #f0f0f0;
       border: 1px solid #ccc;
@@ -148,8 +250,130 @@ function applyInterfaceStyles() {
       justify-content: center;
     }
     
+    #moznostiPlus-size-btn:hover,
     #moznostiPlus-toggle-btn:hover {
       background: #e0e0e0;
+    }
+    
+    /* Minimized mode */
+    #moznostiPlus-interface.minimized #moznostiPlus-presets-section,
+    #moznostiPlus-interface.minimized #moznostiPlus-timelines-section {
+      display: none;
+    }
+    
+    #moznostiPlus-interface.minimized {
+      min-width: auto;
+      width: auto;
+    }
+    
+    #moznostiPlus-interface.minimized #moznostiPlus-content {
+      padding: 8px;
+    }
+    
+    #moznostiPlus-interface.minimized #moznostiPlus-header {
+      margin-bottom: 0;
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    
+    /* Expanded mode */
+    #moznostiPlus-interface.expanded #moznostiPlus-presets-controls {
+      display: none;
+    }
+    
+    #moznostiPlus-interface.expanded #moznostiPlus-timelines-section {
+      display: none;
+    }
+    
+    /* Full mode */
+    /* All buttons visible in all modes */
+
+    
+    #moznostiPlus-presets-section {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #ccc;
+    }
+    
+    #moznostiPlus-presets-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #666;
+      margin-bottom: 6px;
+    }
+    
+    #moznostiPlus-presets-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    
+    .moznostiPlus-preset-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      font-size: 12px;
+    }
+    
+    .moznostiPlus-preset-item.active {
+      background: #d4edda;
+      border-color: #4CAF50;
+      font-weight: bold;
+    }
+    
+    .moznostiPlus-preset-name {
+      flex-grow: 1;
+      cursor: pointer;
+      color: #333;
+    }
+    
+    .moznostiPlus-preset-delete {
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    
+    .moznostiPlus-preset-delete:hover {
+      background: #da190b;
+    }
+    
+    #moznostiPlus-presets-controls {
+      display: flex;
+      gap: 4px;
+    }
+    
+    #moznostiPlus-preset-name {
+      flex-grow: 1;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    
+    #moznostiPlus-create-preset-btn {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
+    #moznostiPlus-create-preset-btn:hover {
+      background: #0b7dda;
     }
     
     #moznostiPlus-timelines-section {
@@ -329,16 +553,111 @@ function applyInterfaceStyles() {
 
 // Attach event listeners
 function attachEventListeners() {
+  const sizeBtn = document.getElementById("moznostiPlus-size-btn");
   const toggleBtn = document.getElementById("moznostiPlus-toggle-btn");
-  const timelinesSection = document.getElementById("moznostiPlus-timelines-section");
+  const presetNameInput = document.getElementById("moznostiPlus-preset-name");
+  const createPresetBtn = document.getElementById("moznostiPlus-create-preset-btn");
 
-  if (!toggleBtn || !timelinesSection) return;
+  if (!sizeBtn || !toggleBtn) return;
 
-  let isExpanded = true;
+  // Size button: decrease size
+  sizeBtn.addEventListener("click", () => {
+    if (interfaceSize === 'expanded') {
+      interfaceSize = 'minimized';
+    } else if (interfaceSize === 'full') {
+      interfaceSize = 'expanded';
+    }
+    // minimized stays minimized (no smaller size available)
+    updateInterfaceSize();
+  });
+
+  // Toggle button: increase size
   toggleBtn.addEventListener("click", () => {
-    isExpanded = !isExpanded;
-    timelinesSection.classList.toggle("hidden");
-    toggleBtn.textContent = isExpanded ? "−" : "+";
+    if (interfaceSize === 'minimized') {
+      interfaceSize = 'expanded';
+    } else if (interfaceSize === 'expanded') {
+      interfaceSize = 'full';
+    }
+    // full stays full (no larger size available)
+    updateInterfaceSize();
+  });
+
+  // Create preset on button click
+  createPresetBtn.addEventListener("click", () => {
+    const name = presetNameInput.value.trim();
+    if (name.length > 0) {
+      createPreset(name);
+      presetNameInput.value = "";
+    }
+  });
+
+  // Create preset on Enter key
+  presetNameInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      createPresetBtn.click();
+    }
+  });
+}
+
+// Update interface size display
+function updateInterfaceSize() {
+  const interfaceDiv = document.getElementById("moznostiPlus-interface");
+  const sizeBtn = document.getElementById("moznostiPlus-size-btn");
+  const toggleBtn = document.getElementById("moznostiPlus-toggle-btn");
+
+  if (!interfaceDiv) return;
+
+  // Remove all size classes
+  interfaceDiv.classList.remove('minimized', 'expanded', 'full');
+  // Add current size class
+  interfaceDiv.classList.add(interfaceSize);
+
+  // Keep button text consistent
+  if (sizeBtn) {
+    sizeBtn.textContent = '−';
+  }
+  if (toggleBtn) {
+    toggleBtn.textContent = '+';
+  }
+}
+
+// Update presets list UI
+function updatePresetsUI() {
+  const presetsList = document.getElementById("moznostiPlus-presets-list");
+  if (!presetsList) return;
+
+  presetsList.innerHTML = "";
+
+  presetsData.presets.forEach(preset => {
+    const itemDiv = document.createElement("div");
+    itemDiv.className = "moznostiPlus-preset-item";
+
+    if (preset.id === presetsData.activePresetId) {
+      itemDiv.classList.add("active");
+    }
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "moznostiPlus-preset-name";
+    nameSpan.textContent = preset.name;
+    nameSpan.addEventListener("click", () => switchPreset(preset.id));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "moznostiPlus-preset-delete";
+    deleteBtn.textContent = "✕";
+    deleteBtn.addEventListener("click", () => {
+      if (presetsData.presets.length > 1) {
+        deletePreset(preset.id);
+      } else {
+        alert("Musíte mít alespoň jeden preset!");
+      }
+    });
+
+    itemDiv.appendChild(nameSpan);
+    if (presetsData.presets.length > 1) {
+      itemDiv.appendChild(deleteBtn);
+    }
+
+    presetsList.appendChild(itemDiv);
   });
 }
 
@@ -348,6 +667,12 @@ function renderTimelines() {
   if (!timelinesDiv) return;
 
   timelinesDiv.innerHTML = "";
+
+  const preset = getActivePreset();
+  if (!preset) {
+    timelinesDiv.innerHTML = "<div style='color: #999; font-size: 11px;'>Žádný aktivní preset</div>";
+    return;
+  }
 
   for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
     const dayDiv = document.createElement("div");
@@ -359,7 +684,7 @@ function renderTimelines() {
     dayDiv.appendChild(labelDiv);
 
     // Create single timeline for the day
-    const ranges = weeklyAvailability[dayOfWeek] || [];
+    const ranges = preset.weeklyAvailability[dayOfWeek] || [];
     const dayTimeline = createDayTimeline(dayOfWeek, ranges);
     dayDiv.appendChild(dayTimeline);
 
@@ -542,8 +867,14 @@ window.moznostiPlusInterface = {
   addTimeRange,
   removeTimeRange,
   updateTimeRange,
-  getAvailability: () => weeklyAvailability,
-  getTimeSlots: () => TIME_SLOTS
+  createPreset,
+  deletePreset,
+  switchPreset,
+  renamePreset,
+  getAvailability: () => getActivePresetData(),
+  getTimeSlots: () => TIME_SLOTS,
+  getAllPresets: () => presetsData.presets,
+  getActivePresetId: () => presetsData.activePresetId
 };
 
 // Initialize on DOM ready
@@ -566,3 +897,7 @@ function loadLabels() {
   }
 }
 
+setInterval(() => {
+  console.log(window.moznostiPlusInterface.getAvailability());
+  console.log(window.moznostiPlusInterface.getTimeSlots());
+}, 5000);
