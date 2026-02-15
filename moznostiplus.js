@@ -3,6 +3,7 @@ console.log("kofi moznostiPlus start");
 // Time slots: 4:30 to 23:00, 30-minute intervals
 const TIME_SLOTS = generateTimeSlots();
 const DAYS_OF_WEEK = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"];
+const DAYS_OF_WEEK_IDS = ["pondeli", "utery", "streda", "ctvrtek", "patek", "sobota", "nedele"];
 
 function generateTimeSlots() {
   const slots = [];
@@ -877,11 +878,41 @@ window.moznostiPlusInterface = {
   getActivePresetId: () => presetsData.activePresetId
 };
 
+let applybuttons = [];
+
+function addApplyButtons() {
+  const newWeeks = Array.from(document.getElementsByTagName("th")).filter((e) => {
+    return e.innerHTML == "Den";
+  });
+  applybuttons = [];
+  for (const nw of newWeeks) {
+    const button = document.createElement('button')
+    button.innerText = 'Preset';
+    button.addEventListener('click', () => {
+      // get next button
+      console.log(this);
+    })
+    button.style.backgroundColor = "#4CAF50";
+    button.style.border = "0px solid";
+    button.type = "button";
+    
+    applybuttons.push(button);
+    
+    nw.innerHTML = "";
+    nw.appendChild(button);                          
+  }
+}
+
+function init() {
+  createInterfaceDiv();
+  addApplyButtons();
+}
+
 // Initialize on DOM ready
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", createInterfaceDiv);
+  document.addEventListener("DOMContentLoaded", init());
 } else {
-  createInterfaceDiv();
+  init();
 }
 
 function loadLabels() {
@@ -897,7 +928,10 @@ function loadLabels() {
   }
 }
 
+
+
 setInterval(() => {
   console.log(window.moznostiPlusInterface.getAvailability());
   console.log(window.moznostiPlusInterface.getTimeSlots());
 }, 5000);
+
