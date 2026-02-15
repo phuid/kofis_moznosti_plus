@@ -164,6 +164,7 @@ function createInterfaceDiv() {
     <div id="moznostiPlus-content">
       <div id="moznostiPlus-header">
         <h3>moznosti+</h3>
+        <button class="moznostiPlus-apply-btn" id="moznostiPlus-apply-all">Preset all</button>
         <div id="moznostiPlus-header-buttons">
           <button id="moznostiPlus-size-btn">−</button>
           <button id="moznostiPlus-toggle-btn">+</button>
@@ -497,6 +498,45 @@ function applyInterfaceStyles() {
     .moznostiPlus-range-delete:hover {
       background: #da190b;
     }
+
+    .moznostiPlus-apply-btn {
+      background-color: white;
+      border: 1px solid transparent;
+      cursor: pointer;
+      border-radius: 0.25rem;
+      position:relative;
+    }
+
+    @property --percent {
+      syntax: '<angle>';
+      inherits: false;
+      initial-value: 0deg;
+    }
+
+    .moznostiPlus-apply-btn::before,
+    .moznostiPlus-apply-btn::after {
+      border-radius: 0.25rem;
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: conic-gradient(from var(--percent) in hsl longer hue, #f00, #f00);
+      width: 100%;
+      height: 100%;
+      transform: scale(1.02);
+      z-index: -1;
+      background-size: 100%;
+      animation: animate 5s infinite linear;
+    }
+
+    .moznostiPlus-apply-btn::after {
+      filter: blur(5px);
+    }
+
+    @keyframes animate {
+      from { --percent: 0deg; }
+      to { --percent: 360deg; }
+    }
     
     .moznostiPlus-add-range-btn {
       background: #4CAF50;
@@ -699,7 +739,7 @@ function renderTimelines() {
     // Add button for new range
     const addBtn = document.createElement("button");
     addBtn.className = "moznostiPlus-add-range-btn";
-    addBtn.textContent = "+ Přidat možnost";
+    addBtn.textContent = "+ Přidat možnost, kdy můžu pracovat";
     addBtn.addEventListener("click", () => addTimeRange(dayOfWeek));
     dayDiv.appendChild(addBtn);
 
@@ -900,18 +940,20 @@ let newWeeks = [];
 const POSITIONED_AFTER = 4;
 const POSITIONED_BEFORE = 2;
 
-function isOccupied(label, availability, timeslots) {
+function isOccupied(label, availability) {
   const checkbox = document.getElementById(label.htmlFor);
 
   const valueSplit = checkbox.value.split("|");
   if (valueSplit.length < 4) { throw ("checkbox valuesplit error"); }
 
   const dayOfWeek = DAYS_OF_WEEK_IDS.indexOf(valueSplit[1]);
-  const timeSlot = valueSplit[2];
+  const timeSlot = (Number(valueSplit[2]) - 4.5) * 2;
 
   let occupied = true;
   for (const av of availability[dayOfWeek]) {
-    
+    if (av.from <= timeSlot && av.to > timeSlot) {
+      occupied = false;
+    }
   }
 
   return occupied;
@@ -920,24 +962,34 @@ function isOccupied(label, availability, timeslots) {
 function handleApplyClick(nw) {
   const labels = loadLabels();
 
-  // // find the checkboxes in the week this button corresponds to
-  // find the
-  const nextNw = (newWeeks.findIndex(e =>
-    e == nw
-  ) + 1) % newWeeks.length;
-
-  let i = 0;
-  while (nw.compareDocumentPosition(labels[i]) == POSITIONED_BEFORE) {
-    //skip all checkboxes that occur before the clicked button
-    if (i >= labels.length) break;
-    i++;
+  if (nw == "all") {
+    for (let i = 0; i < labels.length; i++) {
+      if ((labels[i].ariaChecked == "true") != isOccupied(labels[i], window.moznostiPlusInterface.getAvailability())) {
+        labels[i].click();
+      }
+    }
   }
-  while (nextNw == 0 || newWeeks[nextNw].compareDocumentPosition(labels[i]) == POSITIONED_BEFORE) {
-    if (i >= labels.length) break;
+  else {
+    // // find the checkboxes in the week this button corresponds to
+    // find the
+    const nextNw = (newWeeks.findIndex(e =>
+      e == nw
+    ) + 1) % newWeeks.length;
 
-    labels[i].ariaChecked = isOccupied(labels[i], window.moznostiPlusInterface.getAvailability(), window.moznostiPlusInterface.getTimeSlots());
+    let i = 0;
+    while (nw.compareDocumentPosition(labels[i]) == POSITIONED_BEFORE) {
+      //skip all checkboxes that occur before the clicked button
+      if (i >= labels.length) break;
+      i++;
+    }
+    while (nextNw == 0 || newWeeks[nextNw].compareDocumentPosition(labels[i]) == POSITIONED_BEFORE) {
+      if (i >= labels.length) break;
+      if ((labels[i].ariaChecked == "true") != isOccupied(labels[i], window.moznostiPlusInterface.getAvailability())) {
+        labels[i].click();
+      }
 
-    i++;
+      i++;
+    }
   }
 }
 
@@ -949,13 +1001,14 @@ function addApplyButtons() {
     const button = document.createElement('button')
     button.innerText = 'Preset';
     button.onclick = () => { handleApplyClick(nw) };
-    button.style.backgroundColor = "#4CAF50";
-    button.style.border = "0px solid";
+    button.classList.add("moznostiPlus-apply-btn")
     button.type = "button";
 
     nw.innerHTML = "";
     nw.appendChild(button);
   }
+
+  document.getElementById("moznostiPlus-apply-all").onclick = () => { handleApplyClick('all') };
 }
 
 function init() {
