@@ -3,9 +3,6 @@
   "name": "KOFI IS MOZNOSTI+",
   "version": "0.1",
   "description": "Allows you to define kofi possibilities in a normal way. Then it allows you to convert and copy it across the kofi IS.",
-  "icons": {
-    "48": "icons/-48.png"
-  },
   "content_scripts": [
     {
       "matches": [
@@ -16,5 +13,13 @@
         "moznostiplus.js"
       ]
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "data_collection_permissions": {
+        "required": ["none"]
+      },
+      "update_url": "https://github.com/phuid/kofis_moznosti_plus/blob/main/manifest.json"
+    }
+  }
 }

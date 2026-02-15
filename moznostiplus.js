@@ -213,6 +213,7 @@ function applyInterfaceStyles() {
       z-index: 10000;
       max-height: 95vh;
       overflow-y: auto;
+      user-select: none;
     }
     
     #moznostiPlus-content {
@@ -964,6 +965,7 @@ function handleApplyClick(nw) {
 
   if (nw == "all") {
     for (let i = 0; i < labels.length; i++) {
+      document.getElementById(labels[i].htmlFor).disabled = false;
       if ((labels[i].ariaChecked == "true") != isOccupied(labels[i], window.moznostiPlusInterface.getAvailability())) {
         labels[i].click();
       }
@@ -984,6 +986,7 @@ function handleApplyClick(nw) {
     }
     while (nextNw == 0 || newWeeks[nextNw].compareDocumentPosition(labels[i]) == POSITIONED_BEFORE) {
       if (i >= labels.length) break;
+      document.getElementById(labels[i].htmlFor).disabled = false;
       if ((labels[i].ariaChecked == "true") != isOccupied(labels[i], window.moznostiPlusInterface.getAvailability())) {
         labels[i].click();
       }
