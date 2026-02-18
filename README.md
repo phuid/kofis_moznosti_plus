@@ -14,7 +14,7 @@ You can make it larger and smaller using the + and - buttons highlighted below.
 
 ![default view size](README_img/default.png)
 
-## Big view usage
+## Setting and saving presets - Big view usage
 This is where you set up your availability. Precisely, on the sliders.
 
 The sliders are empty by default, but you can add availability sliders with the green button.
