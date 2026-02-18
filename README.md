@@ -23,7 +23,6 @@ Then drag the green nodes to highlight the time, when you can work.
 Remove a slider by hitting the red X next to the corresponding time.
 
 ![big view](README_img/big.png)
-
 ![with slider](README_img/with_slider.png)
 
 ## Presets
